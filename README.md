@@ -180,18 +180,43 @@ Nota importante:
 - Estos resultados se documentan como evidencia de que la ruta compartida funciona.
 - No se uso esta corrida para "elegir un ganador", sino para validar que los 3 consumen el mismo preprocesamiento.
 
-## Guia Para Tu Companero (Ajuste De Algoritmos)
+## Ajuste De Algoritmos
 
-Archivo principal para hiperparametros:
+Archivo principal para ajustar hiperparametros:
 - `app/ml/model_factory.py`
 
-Regla de colaboracion recomendada:
-- ajustar hiperparametros y logica de cada algoritmo en `model_factory.py`
-- mantener intacta la ruta comun en `app/ml/preprocessor.py`
-- no romper el contrato de endpoints ni el flujo `train/predict` de `app/ml/service.py`
+Reglas para mantener comparabilidad:
+- conservar la misma ruta comun en `app/ml/preprocessor.py`
+- ajustar solo los modelos en `model_factory.py`
+- no romper el flujo `train/predict` de `app/ml/service.py`
+
+Mejoras recomendadas para mejores resultados:
+
+1. SVM:
+- probar `kernel=rbf` y `kernel=poly`
+- hacer busqueda de `C` y `gamma` con validacion cruzada estratificada
+- evaluar `class_weight='balanced'` si cambia el balance del dataset
+
+2. Naive Bayes:
+- ajustar `var_smoothing` en escala logaritmica
+- probar PCA ligero previo para reducir correlacion entre features
+
+3. Perceptron:
+- ajustar `max_iter`, `tol`, `eta0`, `penalty` y `alpha`
+- activar early stopping y revisar convergencia por semilla
+
+4. Evaluacion:
+- usar validacion cruzada estratificada (k-fold) para estabilidad
+- reportar `accuracy`, `f1_weighted` y matriz de confusion
+- repetir corridas con varias semillas y reportar promedio/desviacion
+
+5. Datos y features:
+- revisar muestras con ruido visual (desenfoque, fondo dominante)
+- probar variantes de features de color/texture manteniendo la misma ruta base
+- validar consistencia de unidades en peso y circunferencia
 
 Check rapido despues de cambios:
 
-1. Ejecutar entrenamiento de cada clasificador con el mismo dataset.
-2. Consultar `GET /v1/preprocessing/status` para confirmar que siguen usando `shared_citrus_v1`.
-3. Validar que las metricas cambian por algoritmo, no por diferencias en preprocesamiento.
+1. Reentrenar los 3 clasificadores con el mismo dataset.
+2. Consultar `GET /v1/preprocessing/status` y confirmar `shared_citrus_v1`.
+3. Verificar que cualquier mejora venga del algoritmo, no de cambiar el preprocesamiento.
