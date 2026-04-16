@@ -9,6 +9,7 @@ from app.ml.dataset_loader import DatasetError, DatasetRecord, load_dataset_reco
 from app.ml.feature_extractor import build_feature_vector, read_image_from_bytes
 from app.ml.model_factory import make_classifier, to_probabilities
 from app.ml.model_registry import (
+    ModelRegistryError,
     load_artifact,
     load_preprocessing_artifact,
     save_artifact,
@@ -125,4 +126,67 @@ def predict(
         "class_probabilities": {
             class_name: float(prob) for class_name, prob in zip(classes, probs)
         },
+    }
+
+
+def predict_all(image_bytes: bytes, weight: float, circumference: float) -> dict:
+    results: list[dict] = []
+    best_classifier: str | None = None
+    best_label: str | None = None
+    best_confidence = -1.0
+
+    for classifier in ClassifierName:
+        try:
+            result = predict(
+                classifier=classifier,
+                image_bytes=image_bytes,
+                weight=weight,
+                circumference=circumference,
+            )
+            confidence = float(result["confidence"])
+            item = {
+                "classifier": classifier.value,
+                "status": "ok",
+                "predicted_label": result["predicted_label"],
+                "confidence": confidence,
+                "confidence_percent": round(confidence * 100.0, 2),
+                "class_probabilities": result["class_probabilities"],
+                "detail": None,
+            }
+            results.append(item)
+
+            if confidence > best_confidence:
+                best_confidence = confidence
+                best_classifier = classifier.value
+                best_label = result["predicted_label"]
+
+        except ModelRegistryError as exc:
+            results.append(
+                {
+                    "classifier": classifier.value,
+                    "status": "model_not_trained",
+                    "predicted_label": None,
+                    "confidence": None,
+                    "confidence_percent": None,
+                    "class_probabilities": None,
+                    "detail": str(exc),
+                }
+            )
+        except Exception as exc:
+            results.append(
+                {
+                    "classifier": classifier.value,
+                    "status": "error",
+                    "predicted_label": None,
+                    "confidence": None,
+                    "confidence_percent": None,
+                    "class_probabilities": None,
+                    "detail": f"Error ejecutando {classifier.value}: {exc}",
+                }
+            )
+
+    return {
+        "results": results,
+        "best_classifier": best_classifier,
+        "best_label": best_label,
     }

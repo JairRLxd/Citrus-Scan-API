@@ -10,7 +10,6 @@ La app móvil envía:
 - imagen de fruta
 - peso
 - circunferencia
-- clasificador seleccionado
 
 ## Arquitectura
 
@@ -93,17 +92,19 @@ curl -X POST "http://127.0.0.1:8000/v1/train" \
   }'
 ```
 
-### Predecir desde la app (imagen + medidas + clasificador)
+### Predecir desde la app (imagen + medidas)
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/v1/predict" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
-  -F "classifier=svm" \
   -F "weight=176.5" \
   -F "circumference=22.1" \
   -F "file=@./ejemplo.jpg"
 ```
+
+Este endpoint ejecuta internamente los 3 clasificadores (`svm`, `bayes`, `perceptron`)
+y devuelve los resultados de cada uno con su `confidence_percent`.
 
 ### Obtener recomendaciones de preprocesamiento
 
@@ -153,7 +154,7 @@ Flujo base adoptado:
 10. Escalado con `StandardScaler` para una base comun.
 11. PCA opcional (apagado por default) para escenarios de alta correlacion.
 
-## Estado Actual (13 Abril 2026)
+## Estado Actual (16 Abril 2026)
 
 Lo que ya esta hecho:
 

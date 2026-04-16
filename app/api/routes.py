@@ -19,15 +19,13 @@ from app.ml.analyzer import (
 )
 from app.ml.dataset_loader import DatasetError, load_dataset_records
 from app.ml.model_registry import (
-    ModelRegistryError,
     list_available_models,
     list_models_using_preprocessing,
     load_preprocessing_artifact,
     preprocessing_artifact_path,
 )
 from app.ml.preprocessor import PreprocessingConfig
-from app.ml.service import TrainingError, predict, train
-from app.ml.types import ClassifierName
+from app.ml.service import TrainingError, predict_all, train
 
 router = APIRouter(prefix="/v1", tags=["citrus-api"])
 _lock = threading.Lock()
@@ -99,7 +97,6 @@ def train_model(payload: TrainRequest) -> TrainResponse:
 
 @router.post("/predict", response_model=PredictResponse)
 async def predict_model(
-    classifier: ClassifierName = Form(...),
     weight: float = Form(..., ge=0),
     circumference: float = Form(..., ge=0),
     file: UploadFile = File(...),
@@ -113,14 +110,11 @@ async def predict_model(
 
     with _lock:
         try:
-            result = predict(
-                classifier=classifier,
+            result = predict_all(
                 image_bytes=image_bytes,
                 weight=weight,
                 circumference=circumference,
             )
-        except ModelRegistryError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Error en predict: {exc}") from exc
 

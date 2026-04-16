@@ -22,11 +22,20 @@ class TrainResponse(BaseModel):
     f1_weighted: float
 
 
-class PredictResponse(BaseModel):
+class PredictItemResponse(BaseModel):
     classifier: str
-    predicted_label: str
-    confidence: float
-    class_probabilities: dict[str, float]
+    status: str
+    predicted_label: str | None = None
+    confidence: float | None = None
+    confidence_percent: float | None = None
+    class_probabilities: dict[str, float] | None = None
+    detail: str | None = None
+
+
+class PredictResponse(BaseModel):
+    results: list[PredictItemResponse]
+    best_classifier: str | None = None
+    best_label: str | None = None
 
 
 class DatasetAnalysisRequest(BaseModel):
