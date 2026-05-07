@@ -56,6 +56,25 @@ Sin esos archivos, `/v1/predict` no podra responder correctamente.
   - `inference` (default): bloquea entrenamiento y analisis de dataset.
   - `full`: habilita entrenamiento/analisis (uso local).
 
+## Despliegue en Render (recomendado)
+
+Este repo ya incluye [render.yaml](/Users/alancarloshernandezhernandez/PycharmProjects/Citrus-Scan-API/render.yaml) para deploy automatico.
+
+Pasos:
+
+1. En Render: **New +** -> **Web Service**.
+2. Conectar el repositorio `Citrus-Scan-API`.
+3. Render detecta `render.yaml` y aplica:
+   - `buildCommand`: `pip install -r requirements.txt`
+   - `startCommand`: `gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT`
+   - variable `APP_MODE=inference`
+4. Deploy.
+5. Probar:
+
+```bash
+curl https://<tu-servicio>.onrender.com/v1/health
+```
+
 ## Despliegue en PythonAnywhere
 
 1. Crear virtualenv e instalar dependencias.
@@ -81,4 +100,3 @@ application = ASGIMiddleware(app)
 ```bash
 curl https://<USER>.pythonanywhere.com/v1/health
 ```
-
