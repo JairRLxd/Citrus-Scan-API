@@ -4,6 +4,7 @@ import threading
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
+from app.core.settings import INFERENCE_ONLY
 from app.api.schemas import (
     DatasetAnalysisRequest,
     DatasetAnalysisResponse,
@@ -12,20 +13,6 @@ from app.api.schemas import (
     TrainRequest,
     TrainResponse,
 )
-from app.ml.analyzer import (
-    analyze_records,
-    build_shared_preprocessing_route,
-    preprocessing_recommendations,
-)
-from app.ml.dataset_loader import DatasetError, load_dataset_records
-from app.ml.model_registry import (
-    list_available_models,
-    list_models_using_preprocessing,
-    load_preprocessing_artifact,
-    preprocessing_artifact_path,
-)
-from app.ml.preprocessor import PreprocessingConfig
-from app.ml.service import TrainingError, predict_all, train
 
 router = APIRouter(prefix="/v1", tags=["citrus-api"])
 _lock = threading.Lock()
@@ -38,11 +25,20 @@ def health() -> dict:
 
 @router.get("/models")
 def models() -> dict:
+    from app.ml.model_registry import list_available_models
+
     return {"available_models": list_available_models()}
 
 
 @router.get("/preprocessing/status", response_model=PreprocessingStatusResponse)
 def preprocessing_status() -> PreprocessingStatusResponse:
+    from app.ml.model_registry import (
+        list_models_using_preprocessing,
+        load_preprocessing_artifact,
+        preprocessing_artifact_path,
+    )
+    from app.ml.preprocessor import PreprocessingConfig
+
     route_name = PreprocessingConfig().route_name
     artifact_path = preprocessing_artifact_path(route_name)
     exists = artifact_path.exists()
@@ -76,6 +72,15 @@ def preprocessing_status() -> PreprocessingStatusResponse:
 
 @router.post("/train", response_model=TrainResponse)
 def train_model(payload: TrainRequest) -> TrainResponse:
+    if INFERENCE_ONLY:
+        raise HTTPException(
+            status_code=403,
+            detail="Entrenamiento deshabilitado en nube. Usa artefactos preentrenados.",
+        )
+
+    from app.ml.dataset_loader import DatasetError
+    from app.ml.service import TrainingError, train
+
     with _lock:
         try:
             metrics = train(
@@ -101,6 +106,8 @@ async def predict_model(
     circumference: float = Form(..., ge=0),
     file: UploadFile = File(...),
 ) -> PredictResponse:
+    from app.ml.service import predict_all
+
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
 
@@ -123,6 +130,19 @@ async def predict_model(
 
 @router.post("/preprocessing/recommendation", response_model=DatasetAnalysisResponse)
 def preprocessing_recommendation(payload: DatasetAnalysisRequest) -> DatasetAnalysisResponse:
+    if INFERENCE_ONLY:
+        raise HTTPException(
+            status_code=403,
+            detail="Analisis de preprocesamiento deshabilitado en nube.",
+        )
+
+    from app.ml.analyzer import (
+        analyze_records,
+        build_shared_preprocessing_route,
+        preprocessing_recommendations,
+    )
+    from app.ml.dataset_loader import DatasetError, load_dataset_records
+
     try:
         records = load_dataset_records(payload.dataset_dir, payload.csv_path)
         summary = analyze_records(records)
